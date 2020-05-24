@@ -1,0 +1,131 @@
+version: "3.7"
+
+services:
+  es01:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.7.0
+#    container_name: es01
+    deploy:
+      mode: replicated
+      replicas: 1
+      endpoint_mode: dnsrr
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: stop-first
+    environment:
+      - node.name=es01
+      - cluster.name=clues01
+      - discovery.seed_hosts=es02,es03
+      - cluster.initial_master_nodes=es01,es02,es03
+      - network.publish_host=_eth0:ipv4_
+      # for swarm
+      - bootstrap.memory_lock=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - esvol01:/usr/share/elasticsearch/data
+#    ports:
+#      - 9200:9200
+    networks:
+      - esnet
+      - proxy
+  es02:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.7.0
+#    container_name: es02
+    deploy:
+      mode: replicated
+      replicas: 1
+      endpoint_mode: dnsrr
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: stop-first
+    environment:
+      - node.name=es02
+      - cluster.name=clues01
+      - discovery.seed_hosts=es01,es03
+      - network.publish_host=_eth0:ipv4_
+      - cluster.initial_master_nodes=es01,es02,es03
+# for swarm
+      - bootstrap.memory_lock=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - esvol02:/usr/share/elasticsearch/data
+    networks:
+      - esnet
+      - proxy
+  es03:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.7.0
+#    container_name: es03
+    deploy:
+      mode: replicated
+      replicas: 1
+      endpoint_mode: dnsrr
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: stop-first
+    environment:
+      - node.name=es03
+      - cluster.name=clues01
+      - discovery.seed_hosts=es02,es01
+      - network.publish_host=_eth0:ipv4_
+      - cluster.initial_master_nodes=es01,es02,es03
+# for swarm
+      - bootstrap.memory_lock=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - esvol03:/usr/share/elasticsearch/data
+    networks:
+      - esnet
+      - proxy
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.7.0
+#    volumes:
+#      - ./kibana.yml:/usr/share/kibana/config/kibana.yml
+#    ports:
+#      - 5601:5601
+    environment:
+      - SERVER_NAME=kibana
+      - ELASTICSEARCH_HOSTS=["http://es01:9200","http://es02:9200","http://es03:9200"]
+      - XPACK_MONITORING_ENABLED=true
+    networks:
+      - esnet
+      - proxy
+# -- kafka
+  zookeeper:
+    image: wurstmeister/zookeeper
+    ports:
+      - "2181:2181"
+  kafka:
+    image: wurstmeister/kafka:latest
+    ports:
+      - target: 9094
+        published: 9094
+        protocol: tcp
+        mode: host
+    environment:
+      HOSTNAME_COMMAND: "docker info | grep ^Name: | cut -d' ' -f 2"
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://:9092,OUTSIDE://_{HOSTNAME_COMMAND}:9094
+      KAFKA_LISTENERS: INSIDE://:9092,OUTSIDE://:9094
+      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+
+volumes:
+  esvol01:
+    driver: local  
+  esvol02:
+    driver: local  
+  esvol03:
+    driver: local  
+
+networks:
+  esnet:
+    external: false
+    attachable: true
+  proxy:
+    external: true
+    

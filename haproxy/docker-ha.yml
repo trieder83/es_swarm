@@ -1,0 +1,26 @@
+version: '3.7'
+services:
+  haproxy:
+    image: haproxy:2.1.4
+    restart: always
+    networks:
+      - proxy
+    ports:
+#      - "80:80"
+#      - 443:443
+      - 9200:9200
+      - 5601:5601
+    volumes:
+      - ${PWD}/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+#    healthcheck:
+#      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:81"]
+#      interval: 1m30s
+#      timeout: 10s
+#      retries: 3
+#      start_period: 40s
+#    privileged: true
+
+networks:
+  proxy:
+    external: true
+

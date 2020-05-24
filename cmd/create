@@ -1,0 +1,6 @@
+#!/bin/sh
+. $(dirname $0)/env
+
+INDEX=$1
+
+curl  -XPUT ${ESURL}/${INDEX}
